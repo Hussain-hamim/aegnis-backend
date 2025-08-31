@@ -1,19 +1,21 @@
-import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import mongoose from 'mongoose';
 
 const userSchema = new mongoose.Schema(
   {
     username: {
       type: String,
-      required: [true, 'Username is required'],
+      required: function () {
+        return !this.googleId;
+      }, // Required only for non-Google users
       unique: true,
       trim: true,
-      minlength: [3, 'Username must be at least 3 characters'],
-      maxlength: [30, 'Username cannot exceed 30 characters'],
+      minlength: 3,
+      maxlength: 30,
     },
     email: {
       type: String,
-      required: [true, 'Email is required'],
+      required: true,
       unique: true,
       trim: true,
       lowercase: true,
@@ -24,8 +26,23 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, 'Password is required'],
-      minlength: [6, 'Password must be at least 6 characters'],
+      required: function () {
+        return !this.googleId;
+      }, // Required only for non-Google users
+      minlength: 6,
+    },
+    googleId: {
+      type: String,
+      sparse: true, // Allows multiple nulls but ensures uniqueness for non-null
+      unique: true,
+    },
+    avatar: {
+      type: String,
+    },
+    provider: {
+      type: String,
+      enum: ['local', 'google'],
+      default: 'local',
     },
   },
   {
@@ -33,9 +50,9 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// Hash password before saving
+// Only hash password if it's modified and exists (for local users)
 userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password') || !this.password) return next();
 
   try {
     const salt = await bcrypt.genSalt(12);
@@ -46,8 +63,9 @@ userSchema.pre('save', async function (next) {
   }
 });
 
-// Compare password method
+// Compare password method (only for local users)
 userSchema.methods.comparePassword = async function (candidatePassword) {
+  if (!this.password) return false; // Google users don't have passwords
   return await bcrypt.compare(candidatePassword, this.password);
 };
 

@@ -5,6 +5,37 @@ import auth from '../middleware/auth.js';
 import validateRegisterInput from '../middleware/validateRegisterInput.js';
 
 const router = express.Router();
+import passport from '../config/passport.js';
+
+// Add these new routes for Google OAuth
+router.get(
+  '/google',
+  passport.authenticate('google', {
+    scope: ['profile', 'email'],
+  })
+);
+
+router.get(
+  '/google/callback',
+  passport.authenticate('google', {
+    failureRedirect: 'http://localhost:3000/login?error=google_auth_failed',
+    session: false,
+  }),
+  (req, res) => {
+    try {
+      // Generate JWT token
+      const token = jwt.sign({ id: req.user._id }, process.env.JWT_SECRET, {
+        expiresIn: process.env.JWT_EXPIRE,
+      });
+
+      // Redirect to frontend success page with token
+      res.redirect(`http://localhost:3000/auth/success?token=${token}`);
+    } catch (error) {
+      console.error('Token generation error:', error);
+      res.redirect('http://localhost:3000/login?error=token_error');
+    }
+  }
+);
 
 // Register endpoint
 router.post('/register', validateRegisterInput, async (req, res) => {
@@ -99,10 +130,8 @@ router.post('/login', async (req, res) => {
 // Get current user (protected route)
 router.get('/me', auth, async (req, res) => {
   try {
-    res.json({
-      success: true,
-      user: req.user,
-    });
+    console.log(req.user);
+    res.json(req.user);
   } catch (error) {
     console.error('Get user error:', error.message);
     res.status(500).json({

@@ -1,4 +1,4 @@
-export default validateRegisterInput = (req, res, next) => {
+const validateRegisterInput = (req, res, next) => {
   const { username, email, password } = req.body;
 
   if (!username || !email || !password) {
@@ -24,3 +24,5 @@ export default validateRegisterInput = (req, res, next) => {
 
   next();
 };
+
+export default validateRegisterInput;
